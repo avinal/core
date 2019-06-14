@@ -10,6 +10,7 @@ option (${ROOT_PROJECT_NAME}_THROW_READONLY_EXCEPTIONS "Toggle the throwing Comm
 option (${ROOT_PROJECT_NAME}_THROW_NAN_EXCEPTIONS "Toggle the throwing CommonDataModelExceptions when an  SEScalar is NaNExceptions." ON)
 option (${ROOT_PROJECT_NAME}_USE_OVERRIDE_CONTROL       "When enabled Biogears will control the ranges of override"  OFF)
 option (${ROOT_PROJECT_NAME}_BUILD_CIRCUIT_TESTS       "Toggle on the Circuit Test Library which is a dependeny of libbiogears_jni"  ON)
+option (${ROOT_PROJECT_NAME}_BUILD_PYTHON_HOOKS   "Toggle the building of Python Hooks. pybind11 is a dependency of this process"  OFF)
 
 ###############################################################################
 # Base Variables
@@ -32,7 +33,9 @@ endif()
 verify_package(Threads REQUIRED)
 verify_package(Eigen3 REQUIRED)
 verify_package(CodeSynthesis REQUIRED)
-
+if(${ROOT_PROJECT_NAME}_BUILD_PYTHON_HOOKS)
+  verify_package(pybind11 REQUIRED)
+endif()
 ###############################################################################
 #Code Generation
 ###############################################################################
@@ -53,7 +56,6 @@ configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/libBiogears/src/version.cpp.in  ${CM
 ###############################################################################
 #Sorce and Header Defines
 ###############################################################################
-message(STATUS "")
 message(STATUS "Configuring ${PROJECT_NAME}")
 
 #Biogears CDM
@@ -74,6 +76,12 @@ add_source_files(CIRCUIT_TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/libCircuitTest/sr
 add_source_files(PUBLIC_JNI_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/libJNI/include "*.h"  "Headers\\Public\\")
 add_source_files(JNI_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/libJNI/src "*cpp" "Sources\\")
 
+if(${ROOT_PROJECT_NAME}_BUILD_PYTHON_HOOKS)
+#Biogears PY
+add_source_files(PUBLIC_PY_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/libPY/include "*.h"  "Headers\\Public\\")
+add_source_files(PY_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/libPY/src "*cpp" "Sources\\")
+endif()
+
 set(LIB${PREFIX}_CDM_HEADERS ${CDM_HDRS} ${PUBLIC_CDM_HDRS} ${GEN_CDM_HDRS})
 set(LIB${PREFIX}_CDM_SOURCES ${CDM_SRCS} ${GEN_CDM_SRCS})
 
@@ -87,6 +95,9 @@ set(LIB${PREFIX}_JNI_HEADERS ${JNI_HDRS} ${PUBLIC_JNI_HDRS} ${GEN_JNI_HDRS})
 set(LIB${PREFIX}_JNI_SOURCES ${JNI_SRCS} ${GEN_JNI_SRCS})
 
 message(STATUS CMAKE_GENERATOR=${CMAKE_GENERATOR})
+set(LIB${PREFIX}_PY_HEADERS ${PY_HDRS} ${PUBLIC_PY_HDRS} ${GEN_PY_HDRS})
+set(LIB${PREFIX}_PY_SOURCES ${PY_SRCS} ${GEN_PY_SRCS})
+
 ###############################################################################
 #Define Logic
 ###############################################################################
@@ -113,7 +124,7 @@ if(${PREFIX}_BUILD_STATIC)
     list(APPEND ${PREFIX}_CPPFLAGS  ${CodeSynthesis_CPPFLAGS})
     list(APPEND ${PREFIX}_LDFLAGS "-Wl,--no-as-needed" )
     set_target_properties(lib${PROJECT_NAME} PROPERTIES LINK_FLAGS ${${PREFIX}_LDFLAGS})
-endif()
+  endif()
   ###############################################################################
   # COMPILATION & LINKAGE MODIFICATIONS
   ###############################################################################
@@ -123,7 +134,7 @@ endif()
   if(${ROOT_PROJECT_NAME}_THROW_READONLY_EXCEPTIONS)
         target_compile_definitions(lib${PROJECT_NAME} PUBLIC BIOGEARS_THROW_READONLY_EXCEPTIONS)
   endif()
-   if(${ROOT_PROJECT_NAME}_THROW_NAN_EXCEPTIONS )
+  if(${ROOT_PROJECT_NAME}_THROW_NAN_EXCEPTIONS )
         target_compile_definitions(lib${PROJECT_NAME} PUBLIC BIOGEARS_THROW_NAN_EXCEPTIONS )
   endif()
   target_include_directories(lib${PROJECT_NAME}
@@ -144,6 +155,7 @@ endif()
         CodeSynthesis::XSD
         ${CMAKE_DL_LIBS}
   )
+
   target_link_libraries(lib${PROJECT_NAME} Biogears::common ${${PREFIX}_LIBS} )
   add_dependencies(lib${PROJECT_NAME} ${XSD_TARGETS} prepare_runtime_dir)
 
@@ -185,7 +197,7 @@ else()
             CodeSynthesis::XSD
             Eigen3::Eigen
   )
-	message(STATUS "${PREFIX}_cdm_LIBS=${${PREFIX}_cdm_LIBS}")
+	#message(STATUS "${PREFIX}_cdm_LIBS=${${PREFIX}_cdm_LIBS}")
     target_link_libraries(lib${PROJECT_NAME}_cdm  PUBLIC ${${PREFIX}_cdm_LIBS} )
 
   install(TARGETS lib${PROJECT_NAME}_cdm  EXPORT libBiogears
@@ -220,15 +232,15 @@ else()
   target_compile_definitions(lib${PROJECT_NAME}  PUBLIC ${${PREFIX}_CPPFLAGS_INTERFACE})
   target_compile_definitions(lib${PROJECT_NAME}  PRIVATE ${${PREFIX}_CPPFLAGS} )
 
-    target_compile_options(lib${PROJECT_NAME} PRIVATE $<$<PLATFORM_ID:Windows>:/bigobj> PRIVATE $<$<PLATFORM_ID:Windows>:/MP${${ROOT_PROJECT_NAME}_BUILD_PARALLEL_LEVEL}>)
+  target_compile_options(lib${PROJECT_NAME} PRIVATE $<$<PLATFORM_ID:Windows>:/bigobj> PRIVATE $<$<PLATFORM_ID:Windows>:/MP${${ROOT_PROJECT_NAME}_BUILD_PARALLEL_LEVEL}>)
 
-    if(${ROOT_PROJECT_NAME}_THROW_READONLY_EXCEPTIONS)
+  if(${ROOT_PROJECT_NAME}_THROW_READONLY_EXCEPTIONS)
         target_compile_definitions(lib${PROJECT_NAME} PUBLIC BIOGEARS_THROW_READONLY_EXCEPTIONS)
   endif()
-   if(${ROOT_PROJECT_NAME}_THROW_NAN_EXCEPTIONS )
+  if(${ROOT_PROJECT_NAME}_THROW_NAN_EXCEPTIONS )
         target_compile_definitions(lib${PROJECT_NAME} PUBLIC BIOGEARS_THROW_NAN_EXCEPTIONS )
   endif()
-	if(${ROOT_PROJECT_NAME}_USE_OVERRIDE_CONTROL)
+  if(${ROOT_PROJECT_NAME}_USE_OVERRIDE_CONTROL)
 	  target_compile_definitions( lib${PROJECT_NAME}  PRIVATE BIOGEARS_USE_OVERRIDE_CONTROL)
   endif()
 
@@ -246,7 +258,8 @@ else()
 			Biogears::lib${PROJECT_NAME}_common
             Biogears::lib${PROJECT_NAME}_cdm
   )
-  message(STATUS "${PREFIX}_LIBS=${${PREFIX}_LIBS}")
+  #message(STATUS "${PREFIX}_LIBS=${${PREFIX}_LIBS}")
+
   target_link_libraries(lib${PROJECT_NAME}  PUBLIC ${${PREFIX}_LIBS} )
   #install(TARGETS lib${PROJECT_NAME} EXPORT libBiogears
   #    RUNTIME DESTINATION bin/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
@@ -254,7 +267,7 @@ else()
   #    ARCHIVE DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
   #)
   if(WIN32)
-		install(FILES $<TARGET_PDB_FILE:lib${PROJECT_NAME}> DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>> OPTIONAL)
+    install(FILES $<TARGET_PDB_FILE:lib${PROJECT_NAME}> DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>> OPTIONAL)
   endif()
   ###############################################################################
   # libBiogears_circuit_test
@@ -271,42 +284,41 @@ else()
        PROJECT_LABEL "lib${PROJECT_NAME}_circuit_test"
        DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX}
        CXX_STANDARD 14
-       )
-   set_target_properties(lib${PROJECT_NAME}_circuit_test PROPERTIES SOVERSION "${${ROOT_PROJECT_NAME}_LIB_VERSION}")
-  ###############################################################################
-  # libBiogears_circuit_test COMPILATION & LINKAGE MODIFICATIONS
-  ###############################################################################
-  set( ${PREFIX}_CPPFLAGS $<$<PLATFORM_ID:Windows>:_SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_WARNINGS NOMINMAX > )
-  target_compile_definitions(lib${PROJECT_NAME}_circuit_test  PUBLIC ${${PREFIX}_CPPFLAGS_INTERFACE})
-  target_compile_definitions(lib${PROJECT_NAME}_circuit_test  PRIVATE ${${PREFIX}_CPPFLAGS} )
-  target_compile_options(lib${PROJECT_NAME}_circuit_test PRIVATE $<$<PLATFORM_ID:Windows>:/bigobj>  PRIVATE $<$<PLATFORM_ID:Windows>:/MP${${ROOT_PROJECT_NAME}_BUILD_PARALLEL_LEVEL}>)
+     )
+     set_target_properties(lib${PROJECT_NAME}_circuit_test PROPERTIES SOVERSION "${${ROOT_PROJECT_NAME}_LIB_VERSION}")
+     ###############################################################################
+     # libBiogears_circuit_test COMPILATION & LINKAGE MODIFICATIONS
+     ###############################################################################
+     set( ${PREFIX}_CPPFLAGS $<$<PLATFORM_ID:Windows>:_SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_WARNINGS NOMINMAX > )
+     target_compile_definitions(lib${PROJECT_NAME}_circuit_test  PUBLIC ${${PREFIX}_CPPFLAGS_INTERFACE})
+     target_compile_definitions(lib${PROJECT_NAME}_circuit_test  PRIVATE ${${PREFIX}_CPPFLAGS} )
+     target_compile_options(lib${PROJECT_NAME}_circuit_test PRIVATE $<$<PLATFORM_ID:Windows>:/bigobj>  PRIVATE $<$<PLATFORM_ID:Windows>:/MP${${ROOT_PROJECT_NAME}_BUILD_PARALLEL_LEVEL}>)
+      
+     target_include_directories(lib${PROJECT_NAME}_circuit_test 
+        PRIVATE  ${${PREFIX}_INCLUDE_DIR} ${${PREFIX}_PRIVATE_INCLUDE_DIR} ${${PREFIX}_GENERATED_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libCircuitTest/include
+        PUBLIC   ${CIRCUIT_TEST_INCLUDE_DIRS}
+        INTERFACE 
+                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libCircuitTest/include>
+                 $<INSTALL_INTERFACE:include>
+     )
   
-  target_include_directories(lib${PROJECT_NAME}_circuit_test 
-      PRIVATE  ${${PREFIX}_INCLUDE_DIR} ${${PREFIX}_PRIVATE_INCLUDE_DIR} ${${PREFIX}_GENERATED_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libCircuitTest/include
-      PUBLIC   ${CIRCUIT_TEST_INCLUDE_DIRS}
-      INTERFACE 
-                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libCircuitTest/include>
-                $<INSTALL_INTERFACE:include>
-  )
-
-  set(${PREFIX}_CIRCUIT_TEST_LIBS
-            CodeSynthesis::XSD
-            Eigen3::Eigen
-            Biogears::lib${PROJECT_NAME}
-  )
-  message(STATUS "${PREFIX}_circuit_test_LIBS=${${PREFIX}_circuit_test_LIBS}")
-    target_link_libraries(lib${PROJECT_NAME}_circuit_test  PUBLIC ${${PREFIX}_CIRCUIT_TEST_LIBS} )
-
-
+     set(${PREFIX}_CIRCUIT_TEST_LIBS
+                CodeSynthesis::XSD
+                Eigen3::Eigen
+                Biogears::lib${PROJECT_NAME}
+     )
+     #message(STATUS "${PREFIX}_circuit_test_LIBS=${${PREFIX}_circuit_test_LIBS}")
+     target_link_libraries(lib${PROJECT_NAME}_circuit_test  PUBLIC ${${PREFIX}_CIRCUIT_TEST_LIBS} )
+  
      install(TARGETS lib${PROJECT_NAME}_circuit_test EXPORT libBiogears
-         RUNTIME DESTINATION bin/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
-         LIBRARY DESTINATION ${LIBRARY_INSTALL_DIR}/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
-         ARCHIVE DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
-      )
-	  if(WIN32)
-	    install(FILES $<TARGET_PDB_FILE:lib${PROJECT_NAME}_circuit_test> DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>> OPTIONAL)
-	  endif()
-   endif()
+             RUNTIME DESTINATION bin/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
+             LIBRARY DESTINATION ${LIBRARY_INSTALL_DIR}/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
+             ARCHIVE DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>>
+     )
+    if(WIN32)
+      install(FILES $<TARGET_PDB_FILE:lib${PROJECT_NAME}_circuit_test> DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>> OPTIONAL)
+    endif()
+  endif()
   ###############################################################################
   # libBiogears_jni
   ###############################################################################
@@ -324,29 +336,29 @@ else()
        CXX_STANDARD 14
        )
      set_target_properties(lib${PROJECT_NAME}_jni PROPERTIES SOVERSION "${${ROOT_PROJECT_NAME}_LIB_VERSION}")
-  ###############################################################################
-  # libBiogears_jni COMPILATION & LINKAGE MODIFICATIONS
-  ###############################################################################
-  set( ${PREFIX}_CPPFLAGS $<$<PLATFORM_ID:Windows>:_SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_WARNINGS NOMINMAX > )
-  target_compile_definitions(lib${PROJECT_NAME}_jni  PUBLIC ${${PREFIX}_CPPFLAGS_INTERFACE})
-  target_compile_definitions(lib${PROJECT_NAME}_jni  PRIVATE ${${PREFIX}_CPPFLAGS} )
-  target_compile_options(lib${PROJECT_NAME}_jni PRIVATE $<$<PLATFORM_ID:Windows>:/bigobj>  PRIVATE $<$<PLATFORM_ID:Windows>:/MP${${ROOT_PROJECT_NAME}_BUILD_PARALLEL_LEVEL}>)
+     ###############################################################################
+     # libBiogears_jni COMPILATION & LINKAGE MODIFICATIONS
+     ###############################################################################
+     set( ${PREFIX}_CPPFLAGS $<$<PLATFORM_ID:Windows>:_SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_WARNINGS NOMINMAX > )
+     target_compile_definitions(lib${PROJECT_NAME}_jni  PUBLIC ${${PREFIX}_CPPFLAGS_INTERFACE})
+     target_compile_definitions(lib${PROJECT_NAME}_jni  PRIVATE ${${PREFIX}_CPPFLAGS} )
+     target_compile_options(lib${PROJECT_NAME}_jni PRIVATE $<$<PLATFORM_ID:Windows>:/bigobj>  PRIVATE $<$<PLATFORM_ID:Windows>:/MP${${ROOT_PROJECT_NAME}_BUILD_PARALLEL_LEVEL}>)
+     
+     target_include_directories(lib${PROJECT_NAME}_jni 
+         PRIVATE  ${${PREFIX}_INCLUDE_DIR} ${${PREFIX}_PRIVATE_INCLUDE_DIR} ${${PREFIX}_GENERATED_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libJNI/include
+               PUBLIC   ${JNI_INCLUDE_DIRS}
+         INTERFACE 
+                   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libJNI/include>
+                   $<INSTALL_INTERFACE:include>
+     )
   
-  target_include_directories(lib${PROJECT_NAME}_jni 
-      PRIVATE  ${${PREFIX}_INCLUDE_DIR} ${${PREFIX}_PRIVATE_INCLUDE_DIR} ${${PREFIX}_GENERATED_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libJNI/include
-	    PUBLIC   ${JNI_INCLUDE_DIRS}
-      INTERFACE 
-                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libJNI/include>
-                $<INSTALL_INTERFACE:include>
-  )
-  
-  set(${PREFIX}_jni_LIBS
-            CodeSynthesis::XSD
-            Eigen3::Eigen
-            Biogears::lib${PROJECT_NAME}_circuit_test
-  )
-	message(STATUS "${PREFIX}_jni_LIBS=${${PREFIX}_jni_LIBS}")
-    target_link_libraries(lib${PROJECT_NAME}_jni  PUBLIC ${${PREFIX}_jni_LIBS} )
+     set(${PREFIX}_jni_LIBS
+               CodeSynthesis::XSD
+               Eigen3::Eigen
+               Biogears::lib${PROJECT_NAME}_circuit_test
+     )
+     message(STATUS "${PREFIX}_jni_LIBS=${${PREFIX}_jni_LIBS}")
+     target_link_libraries(lib${PROJECT_NAME}_jni  PUBLIC ${${PREFIX}_jni_LIBS} )
 
 
      install(TARGETS lib${PROJECT_NAME}_jni EXPORT libBiogears
@@ -357,9 +369,64 @@ else()
 	  if(WIN32)
 		 install(FILES $<TARGET_PDB_FILE:lib${PROJECT_NAME}_jni> DESTINATION lib/${${ROOT_PROJECT_NAME}_PLATFORM_PREFIX}$<$<BOOL:${${ROOT_PROJECT_NAME}_BREAKOUT_INSTALL}>:/$<CONFIG>> OPTIONAL)
 	  endif()
+   endif() #Java_FOUND AND ${ROOT_PROJECT_NAME}_BUILD_JAVATOOLS AND ${ROOT_PROJECT_NAME}_BUILD_CIRCUIT_TESTS
+  ###############################################################################
+  # libBiogears_py
+  ###############################################################################
+  if( ${ROOT_PROJECT_NAME}_BUILD_PYTHON_HOOKS )
+     pybind11_add_module(lib${PROJECT_NAME}_py  SHARED ${LIB${PREFIX}_PY_SOURCES} ${LIB${PREFIX}_PY_HEADERS})
+     add_library(Biogears::lib${PROJECT_NAME}_py ALIAS lib${PROJECT_NAME}_py)
+  	   set_target_properties(lib${PROJECT_NAME}_py
+       PROPERTIES
+       DEFINE_SYMBOL ${PROJECT_NAME}_py_EXPORTS
+       FOLDER "Libraries"
+       OUTPUT_NAME "py${PROJECT_NAME}"
+       COMPILE_PDB_NAME "${PROJECT_NAME}_py"
+       PROJECT_LABEL "lib${PROJECT_NAME}_py"
+       DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX}
+       CXX_STANDARD 14
+       )
+     if(WIN32)
+       set_target_properties(lib${PROJECT_NAME}_py PROPERTIES SUFFIX ".pyd")
+     elseif(APPLE)
+       set_target_properties(lib${PROJECT_NAME}_py PROPERTIES SUFFIX ".dylib")
+     else()
+     set_target_properties(lib${PROJECT_NAME}_py PROPERTIES SUFFIX ".so")
    endif()
-endif() #${PREFIX}_BUILD_STATIC
+   ###############################################################################
+   # libBiogears_py COMPILATION & LINKAGE MODIFICATIONS
+   ###############################################################################
+     set( ${PREFIX}_CPPFLAGS $<$<PLATFORM_ID:Windows>:_SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_WARNINGS NOMINMAX > )
+     target_compile_definitions(lib${PROJECT_NAME}_py  PUBLIC ${${PREFIX}_CPPFLAGS_INTERFACE})
+     target_compile_definitions(lib${PROJECT_NAME}_py  PRIVATE ${${PREFIX}_CPPFLAGS} )
+     target_compile_options(lib${PROJECT_NAME}_py PRIVATE $<$<PLATFORM_ID:Windows>:/bigobj>  PRIVATE $<$<PLATFORM_ID:Windows>:/MP>)
+     
+     target_include_directories(lib${PROJECT_NAME}_py 
+         PRIVATE  ${${PREFIX}_INCLUDE_DIR} ${${PREFIX}_PRIVATE_INCLUDE_DIR} ${${PREFIX}_GENERATED_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/libPY/include
+               PUBLIC   ${PY_INCLUDE_DIRS}
+         INTERFACE 
+                   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libPY/include>
+                   $<INSTALL_INTERFACE:include>
+     )
 
+    set(${PREFIX}_py_LIBS
+        CodeSynthesis::XSD
+        Eigen3::Eigen
+        pybind11::module
+        Biogears::lib${PROJECT_NAME}
+              
+    )
+    #message(STATUS "${PREFIX}_py_LIBS=${${PREFIX}_py_LIBS}")
+    target_link_libraries(lib${PROJECT_NAME}_py  PUBLIC ${${PREFIX}_py_LIBS} )
+
+
+    install(TARGETS lib${PROJECT_NAME}_py EXPORT libBiogears
+           RUNTIME DESTINATION bin
+           LIBRARY DESTINATION ${LIBRARY_INSTALL_DIR}
+           ARCHIVE DESTINATION lib
+        )
+  endif() #pybind11_FOUND
+endif() #${PREFIX}_BUILD_STATIC
 ######################################################################################################
 # INSTALL LOGIC
 ######################################################################################################
