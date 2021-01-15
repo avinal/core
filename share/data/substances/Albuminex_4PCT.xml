@@ -4,4 +4,10 @@
   <Component Name="Albumin">
     <Concentration readOnly="false" unit="g/dL" value="4.0"/>
   </Component>
+   <Component Name="Sodium">
+    <Concentration readOnly="false" unit="g/dL" value="0.322"/>
+  </Component>
+  <Component Name="Chloride">
+    <Concentration readOnly="false" unit="g/dL" value="0.454"/>
+  </Component>
 </SubstanceCompound>
