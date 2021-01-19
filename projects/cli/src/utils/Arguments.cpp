@@ -1,5 +1,7 @@
 #include "Arguments.h"
 
+#include <assert.h>
+
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -209,145 +211,226 @@ bool Arguments::isMultiWord(std::string key) const
   return _multiwords.find(key) != _multiwords.end();
 }
 //-----------------------------------------------------------------------------
-void Arguments::set_required_keywords(std::vector<std::string> keys)
+bool Arguments::append_options(std::vector<std::string> new_options)
 {
-  for (auto& key : keys) {
-    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-  }
-  _required_keywords = keys;
-}
-//-----------------------------------------------------------------------------
-auto Arguments::required_keywords() const -> std::vector<std::string>
-{
-  assert(!_required_keywords.empty());
-  return _required_keywords;
-}
-//-----------------------------------------------------------------------------
-void Arguments::set_required_multiword(std::string key)
-{
-  std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-  _required_multiword = key;
-}
-//-----------------------------------------------------------------------------
-std::string Arguments::required_multiword() const
-{
-  return _required_multiword;
-}
-//-----------------------------------------------------------------------------
-bool Arguments::exists(const std::string& key) const
-{
-  return isOption(key) || isKeyword(key) || isMultiWord(key);
-}
-//-----------------------------------------------------------------------------
-auto Arguments::Option(std::string key) const -> OptionValue
-{
-  std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-  assert(_options.find(key) != _options.end());
-  try {
-    return _options.at(key);
-  } catch (const std::out_of_range&) {
-    return false;
-  }
-}
-//-----------------------------------------------------------------------------
-auto Arguments::Keyword(std::string key) const -> KeywordValue
-{
-  std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-  assert(_keywords.find(key) != _keywords.end());
-  try {
-    return _keywords.at(key);
-  } catch (const std::out_of_range&) {
-    return "";
-  }
-}
-//-----------------------------------------------------------------------------
-auto Arguments::MultiWord(std::string key) const -> MultiwordValue
-{
-  std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-  assert(_multiwords.find(key) != _multiwords.end());
-  try {
-    return _multiwords.at(key);
-  } catch (const std::out_of_range&) {
-    return {};
-  }
-}
-//-----------------------------------------------------------------------------
-bool Arguments::KeywordFound(std::string key) const
-{
-  std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-  try {
-    return !_keywords.at(key).empty();
-  } catch (const std::out_of_range&) {
-    return false;
-  }
-}
-//-----------------------------------------------------------------------------
-bool Arguments::MultiWordFound(std::string key) const
-{
-  std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-  try {
-    return !_multiwords.at(key).empty();
-  } catch (const std::out_of_range&) {
-    return false;
-  }
-}
-//-----------------------------------------------------------------------------
-std::string Arguments::error_msg() const
-{
-  return _error;
-}
-//-----------------------------------------------------------------------------
-std::string Arguments::usuage_string() const
-{
-  std::stringstream ss;
-  bool hasFlags = false;
-
-  ss << "Usage " << _self_name << " [";
-  for (auto& option : _options) {
-    if (1 < option.first.size()) {
-      ss << " " << option.first << ",";
-    } else {
-      hasFlags = true;
-    }
-  }
-  ss.seekp(-1, std::ios_base::end);
-  ss << "]\n\t";
-
-  auto count = 0;
-  for (auto& keyword : _keywords) {
-    if (keyword.first.size() == 1) {
-      //I'm assuming your short flags are proceeding your long flags.
-      //In the future we will accept flag names of the form V,VERSION or J,THREADS which will link short flags to full versions
+  for (auto option : new_options) {
+    std::transform(option.begin(), option.end(), option.begin(), ::tolower);
+    if (_options.find(option) != _options.end()) {
+      std::cerr << "Warrning: Option Key" << option << " already in Options."
+                << "\n";
+      assert(true);
       continue;
-    } else {
-      ss << "[" << keyword.first << " VAL]" << ((++count % 4 == 0) ? "\n\t" : " ");
+    }
+    if (_keywords.find(option) != _keywords.end()) {
+      std::cerr << "Warrning: Option Key " << option << " also found in Keywords."
+                << "\n";
+      assert(true);
+      continue;
+    }
+    if (_keywords.find(option) != _keywords.end()) {
+      std::cerr << "Warrning: Option Key " << option << " also found in Multiwords."
+                << "\n";
+      assert(true);
+      continue;
+    }
+    _options[option] = false;
+  }
+  return true;
+}
+//-----------------------------------------------------------------------------
+bool Arguments::append_keywords(std::vector<std::string> new_keys)
+{
+  for (auto key : new_keys) {
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    if (_options.find(key) != _options.end()) {
+      std::cerr << "Warrning: Keyword " << key << " already in Options."
+                << "\n";
+      assert(true);
+      return false;
+    }
+    if (_keywords.find(key) != _keywords.end()) {
+      std::cerr << "Warrning: Option Key " << key << " also found in Keywords."
+                << "\n";
+      assert(true);
+      return false;
+    }
+    if (_multiwords.find(key) != _multiwords.end()) {
+      std::cerr << "Warrning: Option Key " << key << " also found in Multiwords."
+                << "\n";
+      assert(true);
+      return false;
+    }
+    _keywords[key] = "";
+  }
+  return true;
+}
+//-----------------------------------------------------------------------------
+bool Arguments::append_multiword(std::vector<std::string> new_multiwords)
+{
+  for (auto multiword : new_multiwords) {
+    std::transform(multiword.begin(), multiword.end(), multiword.begin(), ::tolower);
+    if (_options.find(multiword) != _options.end()) {
+      std::cerr << "Warrning: Multiword  " << multiword << " already in Options."
+                << "\n";
+      assert(true);
+      return false;
+    }
+    if (_keywords.find(multiword) != _keywords.end()) {
+      std::cerr << "Warrning: Multiword " << multiword << " also found in Keywords."
+                << "\n";
+      assert(true);
+      return false;
+    }
+    if (_multiwords.find(multiword) != _multiwords.end()) {
+      std::cerr << "Warrning: Multiword " << multiword << " also found in Multiwords."
+                << "\n";
+      assert(true);
+      return false;
+    }
+    _multiwords[multiword] = {};
+  }
+  return true;
+  }
+  //-----------------------------------------------------------------------------
+  void Arguments::set_required_keywords(std::vector<std::string> keys)
+  {
+    for (auto& key : keys) {
+      std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    }
+    _required_keywords = keys;
+  }
+  //-----------------------------------------------------------------------------
+  auto Arguments::required_keywords() const->std::vector<std::string>
+  {
+    assert(!_required_keywords.empty());
+    return _required_keywords;
+  }
+  //-----------------------------------------------------------------------------
+  void Arguments::set_required_multiword(std::string key)
+  {
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    _required_multiword = key;
+  }
+  //-----------------------------------------------------------------------------
+  std::string Arguments::required_multiword() const
+  {
+    return _required_multiword;
+  }
+  //-----------------------------------------------------------------------------
+  bool Arguments::exists(const std::string& key) const
+  {
+    return isOption(key) || isKeyword(key) || isMultiWord(key);
+  }
+  //-----------------------------------------------------------------------------
+  auto Arguments::Option(std::string key) const->OptionValue
+  {
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    assert(_options.find(key) != _options.end());
+    try {
+      return _options.at(key);
+    } catch (const std::out_of_range&) {
+      return false;
     }
   }
-  if (count % 4 != 0) {
-    ss.seekp(-1, std::ios_base::end);
-    ss << "\n\t";
+  //-----------------------------------------------------------------------------
+  auto Arguments::Keyword(std::string key) const->KeywordValue
+  {
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    assert(_keywords.find(key) != _keywords.end());
+    try {
+      return _keywords.at(key);
+    } catch (const std::out_of_range&) {
+      return "";
+    }
   }
+  //-----------------------------------------------------------------------------
+  auto Arguments::MultiWord(std::string key) const->MultiwordValue
+  {
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    assert(_multiwords.find(key) != _multiwords.end());
+    try {
+      return _multiwords.at(key);
+    } catch (const std::out_of_range&) {
+      return {};
+    }
+  }
+  //-----------------------------------------------------------------------------
+  bool Arguments::KeywordFound(std::string key) const
+  {
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    try {
+      return !_keywords.at(key).empty();
+    } catch (const std::out_of_range&) {
+      return false;
+    }
+  }
+  //-----------------------------------------------------------------------------
+  bool Arguments::MultiWordFound(std::string key) const
+  {
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    try {
+      return !_multiwords.at(key).empty();
+    } catch (const std::out_of_range&) {
+      return false;
+    }
+  }
+  //-----------------------------------------------------------------------------
+  std::string Arguments::error_msg() const
+  {
+    return _error;
+  }
+  //-----------------------------------------------------------------------------
+  std::string Arguments::usuage_string() const
+  {
+    std::stringstream ss;
+    bool hasFlags = false;
 
-  count = 0;
-  for (auto& multiword : _multiwords) {
-    ss << "[" << multiword.first << " VAL1 [VAL2]...]" << ((++count % 3 == 0) ? "\n\t" : " ");
-  }
-  if (count % 3 != 0) {
-    ss.seekp(-1, std::ios_base::end);
-    ss << "\n";
-  }
-
-  ss << "\n\n";
-  if (hasFlags) {
-    ss << "Flags: \n";
+    ss << "Usage " << _self_name << " [";
     for (auto& option : _options) {
-      if (1 == option.first.size()) {
-        ss << "\t-" << option.first << " : Purpose Description Goes Here \n";
-        //TODO  Convert Pairs to Struct which fields for help and usuage message aiders
+      if (1 < option.first.size()) {
+        ss << " " << option.first << ",";
+      } else {
+        hasFlags = true;
       }
     }
+    ss.seekp(-1, std::ios_base::end);
+    ss << "]\n\t";
+
+    auto count = 0;
+    for (auto& keyword : _keywords) {
+      if (keyword.first.size() == 1) {
+        //I'm assuming your short flags are proceeding your long flags.
+        //In the future we will accept flag names of the form V,VERSION or J,THREADS which will link short flags to full versions
+        continue;
+      } else {
+        ss << "[" << keyword.first << " VAL]" << ((++count % 4 == 0) ? "\n\t" : " ");
+      }
+    }
+    if (count % 4 != 0) {
+      ss.seekp(-1, std::ios_base::end);
+      ss << "\n\t";
+    }
+
+    count = 0;
+    for (auto& multiword : _multiwords) {
+      ss << "[" << multiword.first << " VAL1 [VAL2]...]" << ((++count % 3 == 0) ? "\n\t" : " ");
+    }
+    if (count % 3 != 0) {
+      ss.seekp(-1, std::ios_base::end);
+      ss << "\n";
+    }
+
+    ss << "\n\n";
+    if (hasFlags) {
+      ss << "Flags: \n";
+      for (auto& option : _options) {
+        if (1 == option.first.size()) {
+          ss << "\t-" << option.first << " : Purpose Description Goes Here \n";
+          //TODO  Convert Pairs to Struct which fields for help and usuage message aiders
+        }
+      }
+    }
+    ss << std::endl;
+    return ss.str();
   }
-  ss << std::endl;
-  return ss.str();
-}
 }
