@@ -36,7 +36,7 @@ void SESubstanceOralDose::Clear()
 
 bool SESubstanceOralDose::IsValid() const
 {
-  return SESubstanceAdministration::IsValid() && HasDose() && HasAdminRoute();
+  return SESubstanceAdministration::IsValid() && HasDose() && HasAdminRoute() && m_Substance.GetState()==mil::tatrc::physiology::datamodel::enumSubstanceState::Solid;
 }
 
 bool SESubstanceOralDose::IsActive() const
