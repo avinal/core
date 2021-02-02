@@ -34,11 +34,14 @@ public:
   void AdministerKetamine(double &bolus);
   void SetRingersInfusionRate(double& volume, double& rate);
   void Status();
+  void FluidLoading();
+
 
   biogears::Logger* GetLogger() { return m_bg->GetLogger(); }
 
   protected:
   void AdvanceTime();
+  void AdvanceTimeFluids();
 
   std::thread m_burnThread;
   std::mutex m_mutex;
@@ -50,5 +53,7 @@ public:
   biogears::SESubstanceBolus* m_ketamineBolus;
   biogears::SESubstanceCompoundInfusion* m_ringers;
   double m_ivBagVolume_mL;
+  double m_TotalVolume_mL = 0.0;
+
 
 };
