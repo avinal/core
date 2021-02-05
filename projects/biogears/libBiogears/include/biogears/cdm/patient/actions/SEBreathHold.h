@@ -19,9 +19,9 @@ class SEScalar0To1;
 class SEConsciousRespiration;
 class BIOGEARS_API SEBreathHold : public SEConsciousRespirationCommand {
   friend class SEConsciousRespiration;
-  SEBreathHold();
 
 public:
+  SEBreathHold();
   virtual ~SEBreathHold();
 
   virtual void Clear(); //clear memory

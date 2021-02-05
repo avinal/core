@@ -13,22 +13,25 @@ specific language governing permissions and limitations under the License.
 #pragma once
 #include <biogears/cdm/CommonDataModel.h>
 #include <biogears/exports.h>
+#include <biogears/schema/cdm/Scenario.hxx>
+
+#include <biogears/cdm/engine/PhysiologyEngineConfiguration.h>
+#include <biogears/cdm/patient/SEPatient.h>
+#include <biogears/cdm/scenario/SECondition.h>
+#include <biogears/cdm/scenario/SEScenario.h>
 
 CDM_BIND_DECL(ScenarioInitialParametersData)
 
 namespace biogears {
+
 class SEScenario;
-class SEPatient;
-class SECondition;
-class SESubstanceManager;
-class PhysiologyEngineConfiguration;
 
 class BIOGEARS_API SEScenarioInitialParameters : public Loggable {
 protected:
   friend SEScenario;
+
   SEScenarioInitialParameters(SESubstanceManager& subMgr);
   virtual ~SEScenarioInitialParameters();
-  
 
 public:
   virtual void Clear(); //clear memory
@@ -66,13 +69,12 @@ public:
   virtual bool TrackingStabilization() const;
   virtual void SetTrackStabilization(bool flag);
 
-  protected:
+protected:
   SESubstanceManager& m_SubMgr;
   PhysiologyEngineConfiguration* m_Configuration;
   SEPatient* m_Patient;
   std::string m_PatientFile;
   std::vector<SECondition*> m_Conditions;
   bool m_DoTrackStabilization;
-
 };
 }

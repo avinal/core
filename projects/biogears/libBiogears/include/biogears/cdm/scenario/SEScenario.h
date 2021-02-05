@@ -12,17 +12,17 @@ specific language governing permissions and limitations under the License.
 
 #pragma once
 #include <biogears/cdm/CommonDataModel.h>
+#include <biogears/cdm/scenario/SEAction.h>
+#include <biogears/cdm/scenario/SEScenarioAutoSerialization.h>
+#include <biogears/cdm/scenario/SEScenarioInitialParameters.h>
 #include <biogears/cdm/scenario/requests/SEDataRequestManager.h>
+#include <biogears/cdm/substance/SESubstanceManager.h>
 #include <biogears/exports.h>
 #include <biogears/schema/cdm/Scenario.hxx>
 
 namespace biogears {
-class SESubstanceManager;
-class SEAction;
-class SEDataRequest;
+
 class SEScenarioInitialParameters;
-class SEScenarioAutoSerialization;
-class SEDecimalFormat;
 
 class BIOGEARS_API SEScenario : public Loggable {
 public:
