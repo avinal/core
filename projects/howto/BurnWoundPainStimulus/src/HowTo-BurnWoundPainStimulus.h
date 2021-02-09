@@ -28,7 +28,7 @@ class SESubstanceCompoundInfusion;
 
 class BurnThread {
 public:
-  BurnThread(const std::string& logFile, double &tbsa);
+  BurnThread(const std::string logFile, double tbsa);
   virtual ~BurnThread();
 
   void AdministerKetamine(double &bolus);

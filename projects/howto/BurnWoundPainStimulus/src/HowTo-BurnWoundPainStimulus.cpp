@@ -41,7 +41,7 @@ using namespace biogears;
 //--------------------------------------------------------------------------------------------------
 void HowToBurnWoundPainStimulus()
 {
-  double burnTBSA;
+  double burnTBSA = 30;
   std::cout << "Provide a burn size (total body surface area, in %), followed by ENTER" << std::endl;
   std::cin >> burnTBSA;
   if (burnTBSA < 0.0) {
@@ -90,9 +90,10 @@ void HowToBurnWoundPainStimulus()
       burn.GetLogger()->Info("Not a valid option \n");
     }
   } while (active);
+
 }
 
-BurnThread::BurnThread(const std::string& logFile, double& tbsa)
+BurnThread::BurnThread(const std::string logFile, double tbsa)
   : m_burnThread()
 {
   //Create the engine and load patient state
@@ -180,7 +181,6 @@ void BurnThread::AdvanceTime()
 
 void BurnThread::AdvanceTimeFluids()
 {
-  while (m_runThread) {
     m_mutex.lock();
     m_bg->AdvanceModelTime(1.0, TimeUnit::s);
     if (m_ringers->HasBagVolume() && m_ringers->HasRate()) {
@@ -192,12 +192,11 @@ void BurnThread::AdvanceTimeFluids()
         m_ringers->Clear();
       }
     }
+    m_bg->GetEngineTrack()->GetDataTrack().Probe("totalFluid_mL", m_TotalVolume_mL);
+    m_bg->GetEngineTrack()->GetDataTrack().Probe("bagVolume_mL", m_ivBagVolume_mL);
     m_bg->GetEngineTrack()->TrackData(m_bg->GetSimulationTime(TimeUnit::s));
     m_mutex.unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(25));
-    m_bg->GetEngineTrack()->GetDataTrack().Probe("totalFluid_mL", m_TotalVolume_mL);
-
-  }
 }
 
 void BurnThread::Status()
@@ -225,16 +224,16 @@ void BurnThread::Status()
 void BurnThread::FluidLoading()
 {
 
-  //Create the engine and load patient state
-  m_bg = CreateBioGearsEngine("HowToBurnFluid.log");
-  if (!m_bg->LoadState("./states/StandardMale@0s.xml")) {
-    m_bg->GetLogger()->Error("Could not load state, check the error");
-    return;
-  }
+  ////Create the engine and load patient state
+  //m_bg = CreateBioGearsEngine("HowToBurnFluid.log");
+  //if (!m_bg->LoadState("./states/StandardMale@0s.xml")) {
+  //  m_bg->GetLogger()->Error("Could not load state, check the error");
+  //  return;
+  //}
 
   double tbsa = 30.0;
   double urineProduction = 0.0;
-  int checkTime = 60;
+  int checkTime_s = 3600;
   double ringersVolume_mL = 500.0;
   double volume = 0.0;
   double titrate = 0.25;   //how much to adjust each hour 
@@ -250,53 +249,54 @@ void BurnThread::FluidLoading()
   double DayLimit_Hr = DayLimit_mL/24.0;
 
 
-  //set up data: 
-  m_bg->GetEngineTrack()->GetDataRequestManager().SetResultsFilename("HowToBurnWoundFluid.csv");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("HeartRate", "1/min");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("CardiacOutput", "mL/min");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("MeanArterialPressure", "mmHg");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("SystolicArterialPressure", "mmHg");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("DiastolicArterialPressure", "mmHg");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("RespirationRate", "1/min");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("TidalVolume", "mL");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("SystemicVascularResistance", "mmHg s/mL");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("BloodVolume", "mL");
-  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("MeanUrineOutput", "mL/hr");
+  ////set up data: 
+  //m_bg->GetEngineTrack()->GetDataRequestManager().SetResultsFilename("HowToBurnWoundFluid.csv");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("HeartRate", "1/min");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("CardiacOutput", "mL/min");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("MeanArterialPressure", "mmHg");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("SystolicArterialPressure", "mmHg");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("DiastolicArterialPressure", "mmHg");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("RespirationRate", "1/min");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("TidalVolume", "mL");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("SystemicVascularResistance", "mmHg s/mL");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("BloodVolume", "mL");
+  //m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("MeanUrineOutput", "mL/hr");
 
-  //set burnwound 
-  m_burnWound = new SEBurnWound();
-  m_burnWound->GetTotalBodySurfaceArea().SetValue(tbsa / 100.0);
-  m_bg->ProcessAction(*m_burnWound);
+  ////set burnwound 
+  //m_burnWound = new SEBurnWound();
+  //m_burnWound->GetTotalBodySurfaceArea().SetValue(tbsa / 100.0);
+  //m_bg->ProcessAction(*m_burnWound);
 
   //set fluid infusion rate, using ringers lactate: 
-  m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
-  m_ringers->GetRate().SetValue(initialInfustion_mL_Per_hr, VolumePerTimeUnit::mL_Per_hr);
-  m_ivBagVolume_mL = volume;
-  m_mutex.lock();
-  m_bg->ProcessAction(*m_ringers);
-  m_mutex.unlock();
+  SetRingersInfusionRate(ringersVolume_mL, initialInfustion_mL_Per_hr);
+  //m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
+  //m_ringers->GetRate().SetValue(initialInfustion_mL_Per_hr, VolumePerTimeUnit::mL_Per_hr);
+  //m_ivBagVolume_mL = volume;
+  //m_mutex.lock();
+  //m_bg->ProcessAction(*m_ringers);
+  //m_mutex.unlock();
 
   while(m_runThread) {
-
-    //check urine every hour
-    if((int)m_bg->GetSimulationTime(TimeUnit::min) % checkTime == 0) {
+    //check urine every hour, reset the volume while we are at it 
+    if(((int)m_bg->GetSimulationTime(TimeUnit::s) + 1) % checkTime_s == 0) {
       m_bg->GetLogger()->Info(std::stringstream() << "Checking urine production" << m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr));
-      if(m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr) < targetLowUrineProduction_mL_Per_Hr);  {
-        m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too low at" << m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr));
-        m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
+      urineProduction = m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr);
+      if(urineProduction < targetLowUrineProduction_mL_Per_Hr)  {
+        m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too low at " << urineProduction);
         m_ringers->GetRate().SetValue((m_ringers->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1+titrate), VolumePerTimeUnit::mL_Per_hr);
+        m_bg->ProcessAction(*m_ringers);
       }
       if ((m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr) > targetHighUrineProduction_mL_Per_Hr)) {
         m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too high at" << m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr));
         m_ringers->Clear();
-        m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
         m_ringers->GetRate().SetValue((m_ringers->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1 - titrate), VolumePerTimeUnit::mL_Per_hr);
+        m_bg->ProcessAction(*m_ringers);
       }
-
     }
-
-    //advance time
-    AdvanceTimeFluids();
+    // make sure that the bag is full
+    if(m_ringers->GetBagVolume().GetValue(VolumeUnit::mL) < 30.0) {
+      m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
+    }
 
     //exit checks: 
     if(m_TotalVolume_mL > DayLimit_mL) {
@@ -309,8 +309,8 @@ void BurnThread::FluidLoading()
       m_runThread = false;
     }
 
-
-
+    //advance time
+    AdvanceTimeFluids();
 
   }
 }
