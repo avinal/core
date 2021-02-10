@@ -22,8 +22,8 @@ public:
 
   CDM::Scalar0To1Data* Unload() const;
 
-  double GetValue() const { return SEScalar::GetValue(); }
-  double GetValue(const NoUnit& unitless) const { return SEScalar::GetValue(); }
+  double GetValue() const override { return SEScalar::GetValue(); }
+  double GetValue(const NoUnit& unitless = NoUnit::unitless) { return SEScalar::GetValue(); }
   void SetValue(double d);
   void SetValue(double d, const NoUnit& unitless);
 };
