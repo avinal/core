@@ -19,8 +19,13 @@ specific language governing permissions and limitations under the License.
 CDM_BIND_DECL(PhysiologyEngineTimedConditionStabilizationData)
 
 namespace biogears {
+namespace io {
+  class EngineConfiguration;
+}
+
 class BIOGEARS_API PhysiologyEngineTimedStabilizationCriteria : public Loggable {
 public:
+  friend io::EngineConfiguration;
   PhysiologyEngineTimedStabilizationCriteria(Logger* logger);
   virtual ~PhysiologyEngineTimedStabilizationCriteria();
 
@@ -52,6 +57,7 @@ protected:
 CDM_BIND_DECL(PhysiologyEngineTimedStabilizationData)
 class BIOGEARS_API PhysiologyEngineTimedStabilization : public PhysiologyEngineStabilization {
 public:
+  friend io::EngineConfiguration;
   PhysiologyEngineTimedStabilization(Logger* logger);
   virtual ~PhysiologyEngineTimedStabilization();
 
@@ -78,7 +84,7 @@ public:
   virtual SEScalarTime& GetFeedbackStabilizationTime();
   virtual double GetFeedbackStabilizationTime(const TimeUnit& unit) const;
 
-  virtual bool HasConditionCriteria(const  char* name) const;
+  virtual bool HasConditionCriteria(const char* name) const;
   virtual bool HasConditionCriteria(const std::string& name) const;
   virtual void RemoveConditionCriteria(const char* name);
   virtual void RemoveConditionCriteria(const std::string& name);
