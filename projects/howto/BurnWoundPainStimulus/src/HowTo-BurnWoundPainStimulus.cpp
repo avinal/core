@@ -192,6 +192,8 @@ void BurnThread::AdvanceTimeFluids()
         m_bg->GetLogger()->Info("Ringers Lactate IV bag is empty \n");
       }
     }
+    m_bg->GetEngineTrack()->GetDataTrack().Probe("totalFluid_mL", m_TotalVolume_mL);
+    m_bg->GetEngineTrack()->GetDataTrack().Probe("bagVolume_mL", m_ivBagVolume_mL);
     m_bg->GetEngineTrack()->TrackData(m_bg->GetSimulationTime(TimeUnit::s));
     m_mutex.unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -225,7 +227,7 @@ void BurnThread::FluidLoading()
   double tbsa = 30.0;
   double urineProduction = 0.0;
   int checkTime_s = 3600;
-  double ringersVolume_mL = 5.0;
+  double ringersVolume_mL = 500.0;
   double volume = 0.0;
   double titrate = 0.25;   //how much to adjust each hour 
   m_runThread = true;
@@ -259,14 +261,14 @@ void BurnThread::FluidLoading()
         m_bg->ProcessAction(*m_ringers);
       }
     }
-    m_bg->GetLogger()->Info(std::stringstream() << "Bag volume: " << m_ringers->GetBagVolume().GetValue(VolumeUnit::mL));
     // make sure that the bag is full
-    if(m_ringers->GetBagVolume().GetValue(VolumeUnit::mL) < 1.0) {
+    if(m_ivBagVolume_mL < 1.0) {
       m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
       m_bg->GetLogger()->Info("Ringers Lactate IV bag is low, refilling bag \n");
+      m_bg->ProcessAction(*m_ringers);
       m_ivBagVolume_mL = ringersVolume_mL;   //tracking purposes
     }
-
+   
     //exit checks: 
     if(m_TotalVolume_mL > DayLimit_mL) {
       m_bg->GetLogger()->Info(std::stringstream() << "We have given too many fluids, per guidelines: " << m_TotalVolume_mL);

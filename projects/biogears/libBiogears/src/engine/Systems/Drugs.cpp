@@ -649,7 +649,6 @@ void Drugs::AdministerSubstanceCompoundInfusion()
       volumeToAdminister_mL = volumeRemaining_mL;
       emptyBags.push_back(compound);
     }
-    GetLogger()->Info(std::stringstream() << "Bag volume: " << infusion->GetBagVolume().GetValue(VolumeUnit::mL));
     infusion->GetBagVolume().IncrementValue(-volumeToAdminister_mL, VolumeUnit::mL);
 
     for (auto const& component : compound->GetComponents()) {
