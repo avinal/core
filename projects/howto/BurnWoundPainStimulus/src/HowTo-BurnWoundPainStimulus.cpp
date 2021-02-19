@@ -120,9 +120,11 @@ BurnThread::BurnThread(const std::string logFile, double tbsa)
 
   //Load substances and compounds
   SESubstanceCompound* ringers = m_bg->GetSubstanceManager().GetCompound("RingersLactate");
+  SESubstanceCompound* albumex = m_bg->GetSubstanceManager().GetCompound("Albuminex_4PCT");
   SESubstance* ketamine = m_bg->GetSubstanceManager().GetSubstance("Ketamine");
   //Create infusion and bolus actions
   m_ringers = new SESubstanceCompoundInfusion(*ringers);
+  m_albumex = new SESubstanceCompoundInfusion(*albumex);
   m_ivBagVolume_mL = 0.0;
   m_ketamineBolus = new SESubstanceBolus(*ketamine);
 
@@ -159,6 +161,17 @@ void BurnThread::SetRingersInfusionRate(double& volume, double& rate)
   m_ivBagVolume_mL = volume;
   m_mutex.lock();
   m_bg->ProcessAction(*m_ringers);
+  m_mutex.unlock();
+}
+
+
+void BurnThread::SetAlbuminInfusionRate(double& volume, double& rate)
+{
+  m_albumex->GetBagVolume().SetValue(volume, VolumeUnit::mL);
+  m_albumex->GetRate().SetValue(rate, VolumePerTimeUnit::mL_Per_hr);
+  m_ivBagVolume_mL = volume;
+  m_mutex.lock();
+  m_bg->ProcessAction(*m_albumex);
   m_mutex.unlock();
 }
 
@@ -199,6 +212,24 @@ void BurnThread::AdvanceTimeFluids()
     std::this_thread::sleep_for(std::chrono::milliseconds(25));
 }
 
+void BurnThread::AdvanceTimeFluidsAlbumin()
+{
+  m_mutex.lock();
+  m_bg->AdvanceModelTime(1.0, TimeUnit::s);
+  if (m_albumex->HasBagVolume() && m_albumex->HasRate()) {
+    m_TotalVolume_mL += (m_albumex->GetRate().GetValue(VolumePerTimeUnit::mL_Per_s));
+    m_ivBagVolume_mL += (-m_albumex->GetRate().GetValue(VolumePerTimeUnit::mL_Per_s));
+    if (m_ivBagVolume_mL < 0.0) {
+      m_bg->GetLogger()->Info("Albumex_4PCT IV bag is empty \n");
+    }
+  }
+  m_bg->GetEngineTrack()->GetDataTrack().Probe("totalFluid_mL", m_TotalVolume_mL);
+  m_bg->GetEngineTrack()->GetDataTrack().Probe("bagVolume_mL", m_ivBagVolume_mL);
+  m_bg->GetEngineTrack()->TrackData(m_bg->GetSimulationTime(TimeUnit::s));
+  m_mutex.unlock();
+  std::this_thread::sleep_for(std::chrono::milliseconds(25));
+}
+
 void BurnThread::Status()
 {
   m_mutex.lock();
@@ -224,6 +255,8 @@ void BurnThread::Status()
 void BurnThread::FluidLoading()
 {
 
+  //fluidType fluid = ringers;
+  auto fluid = albumin;   //set the type of fluid here
   double tbsa = 30.0;
   double urineProduction = 0.0;
   int checkTime_s = 3600;
@@ -242,7 +275,13 @@ void BurnThread::FluidLoading()
   double DayLimit_Hr = DayLimit_mL/24.0;
 
   //set fluid infusion rate, using ringers lactate: 
-  SetRingersInfusionRate(ringersVolume_mL, initialInfustion_mL_Per_hr);
+  if(fluid == ringers) {
+    SetRingersInfusionRate(ringersVolume_mL, initialInfustion_mL_Per_hr);
+  }
+  //same volume and rate
+  if (fluid == albumin) {
+    SetAlbuminInfusionRate(ringersVolume_mL, initialInfustion_mL_Per_hr);
+  }
 
   while(m_runThread) {
     //check urine every hour, reset the volume while we are at it 
@@ -250,23 +289,49 @@ void BurnThread::FluidLoading()
       Status();
       m_bg->GetLogger()->Info(std::stringstream() << "Checking urine production" << m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr));
       urineProduction = m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr);
-      if(urineProduction < targetLowUrineProduction_mL_Per_Hr)  {
-        m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too low at " << urineProduction);
-        m_ringers->GetRate().SetValue((m_ringers->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1+titrate), VolumePerTimeUnit::mL_Per_hr);
-        m_bg->ProcessAction(*m_ringers);
+      if(fluid == ringers) {
+        if (urineProduction < targetLowUrineProduction_mL_Per_Hr) {
+          m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too low at " << urineProduction);
+          m_ringers->GetRate().SetValue((m_ringers->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1 + titrate), VolumePerTimeUnit::mL_Per_hr);
+          m_bg->ProcessAction(*m_ringers);
+        }
+        if ((m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr) > targetHighUrineProduction_mL_Per_Hr)) {
+          m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too high at" << m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr));
+          m_ringers->GetRate().SetValue((m_ringers->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1 - titrate), VolumePerTimeUnit::mL_Per_hr);
+          m_bg->ProcessAction(*m_ringers);
+        }
       }
-      if ((m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr) > targetHighUrineProduction_mL_Per_Hr)) {
-        m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too high at" << m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr));
-        m_ringers->GetRate().SetValue((m_ringers->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1 - titrate), VolumePerTimeUnit::mL_Per_hr);
-        m_bg->ProcessAction(*m_ringers);
+      if (fluid == albumin) {
+        if (urineProduction < targetLowUrineProduction_mL_Per_Hr) {
+          m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too low at " << urineProduction);
+          m_albumex->GetRate().SetValue((m_albumex->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1 + titrate), VolumePerTimeUnit::mL_Per_hr);
+          m_bg->ProcessAction(*m_albumex);
+        }
+        if ((m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr) > targetHighUrineProduction_mL_Per_Hr)) {
+          m_bg->GetLogger()->Info(std::stringstream() << "Urine production is too high at" << m_bg->GetRenalSystem()->GetMeanUrineOutput(VolumePerTimeUnit::mL_Per_hr));
+          m_albumex->GetRate().SetValue((m_albumex->GetRate().GetValue(VolumePerTimeUnit::mL_Per_hr))*(1 - titrate), VolumePerTimeUnit::mL_Per_hr);
+          m_bg->ProcessAction(*m_albumex);
+        }
       }
+
     }
     // make sure that the bag is full
-    if(m_ivBagVolume_mL < 1.0) {
-      m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
-      m_bg->GetLogger()->Info("Ringers Lactate IV bag is low, refilling bag \n");
-      m_bg->ProcessAction(*m_ringers);
-      m_ivBagVolume_mL = ringersVolume_mL;   //tracking purposes
+    if(fluid == ringers) {
+      if (m_ivBagVolume_mL < 1.0) {
+        m_ringers->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
+        m_bg->GetLogger()->Info("ringers IV bag is low, refilling bag \n");
+        m_bg->ProcessAction(*m_ringers);
+        m_ivBagVolume_mL = ringersVolume_mL;   //tracking purposes
+      }
+    }
+
+    if (fluid == albumin) {
+      if (m_ivBagVolume_mL < 1.0) {
+        m_albumex->GetBagVolume().SetValue(ringersVolume_mL, VolumeUnit::mL);
+        m_bg->GetLogger()->Info("albumin IV bag is low, refilling bag \n");
+        m_bg->ProcessAction(*m_albumex);
+        m_ivBagVolume_mL = ringersVolume_mL;   //tracking purposes
+      }
     }
    
     //exit checks: 
@@ -281,7 +346,15 @@ void BurnThread::FluidLoading()
     }
 
     //advance time
-    AdvanceTimeFluids();
+    if(fluid == ringers) {
+      AdvanceTimeFluids();
+    }
+
+    if (fluid == albumin) {
+      AdvanceTimeFluidsAlbumin();
+    }
+
+
 
   }
 }
