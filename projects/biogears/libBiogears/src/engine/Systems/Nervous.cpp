@@ -816,6 +816,7 @@ void Nervous::LocalAutoregulation()
   double large_ex = std::exp(-combinedLargePialRegulator / resistanceSlopeLarge);
   double small_ex = std::exp(-combinedSmallPialRegulator / resistanceSlopeSmall);
 
+
   //check the exponentials, if they are too big set them to a large number
   if(!std::isinf(large_ex)) {
     largePialResistanceMultiplier = ((1.0 + resistanceWidthLarge) + (1.0 - resistanceWidthLarge) * large_ex) / (1.0 + large_ex);

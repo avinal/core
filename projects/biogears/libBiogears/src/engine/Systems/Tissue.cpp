@@ -1852,6 +1852,8 @@ void Tissue::CalculateOncoticPressure()
     totalProteinInterstitial_g_Per_dL = 1.6 * m_data.GetCompartments().GetExtracellularFluid(*tissue).GetSubstanceQuantity(*m_Albumin)->GetConcentration(MassPerVolumeUnit::g_Per_dL);
     vascularOncoticPressure_mmHg = 2.1 * totalProteinVascular_g_Per_dL + 0.16 * std::pow(totalProteinVascular_g_Per_dL, 2) + 0.009 * std::pow(totalProteinVascular_g_Per_dL, 3);
     interstitialOncoticPressure_mmHg = 2.1 * totalProteinInterstitial_g_Per_dL + 0.16 * std::pow(totalProteinInterstitial_g_Per_dL, 2) + 0.009 * std::pow(totalProteinInterstitial_g_Per_dL, 3);
+    m_data.GetDataTrack().Probe("oncoticPressure_mmHg", vascularOncoticPressure_mmHg);
+    m_data.GetDataTrack().Probe("oncoticPressureInterstitial_mmHg", interstitialOncoticPressure_mmHg);
 
     if (vascular->GetName() == BGE::VascularCompartment::Gut) {
       for (auto c : vascular->GetChildren()) {

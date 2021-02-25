@@ -106,7 +106,9 @@ BurnThread::BurnThread(const std::string logFile, double tbsa)
   //Create CSV results file and set up data that we want to be tracked (tracking done in AdvanceModelTime)
   m_bg->GetEngineTrack()->GetDataRequestManager().SetResultsFilename("HowToBurnWound.csv");
   m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("HeartRate", "1/min");
+  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("ArterialBloodPH", "unitless");
   m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("CardiacOutput", "mL/min");
+  m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("InflammatoryResponse-TissueIntegrity");
   m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("MeanArterialPressure", "mmHg");
   m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("SystolicArterialPressure", "mmHg");
   m_bg->GetEngineTrack()->GetDataRequestManager().CreatePhysiologyDataRequest().Set("DiastolicArterialPressure", "mmHg");
@@ -256,7 +258,8 @@ void BurnThread::FluidLoading()
 {
 
   //fluidType fluid = ringers;
-  auto fluid = albumin;   //set the type of fluid here
+ // auto fluid = albumin;   //set the type of fluid here
+  auto fluid = ringers;   //set the type of fluid here
   double tbsa = 30.0;
   double urineProduction = 0.0;
   int checkTime_s = 3600;
@@ -265,14 +268,15 @@ void BurnThread::FluidLoading()
   double titrate = 0.25;   //how much to adjust each hour 
   m_runThread = true;
 
-  //compute urine production and max fluid requirements 
+  //compute urine production and max fluid requirements, per parkland formula
   const SEPatient& patient = m_bg->GetPatient();
   double weight_kg = patient.GetWeight(MassUnit::kg);
-  double initialInfustion_mL_Per_hr = 10.0*tbsa;
   double targetLowUrineProduction_mL_Per_Hr = 0.5 * weight_kg;
-  double targetHighUrineProduction_mL_Per_Hr = 1.0 * weight_kg;
-  double DayLimit_mL = 5.0 * weight_kg * tbsa;
+  double targetHighUrineProduction_mL_Per_Hr = 0.75 * weight_kg;   //average of around 50ml/hr
+  double DayLimit_mL = 4.0 * weight_kg * tbsa;
+  double initialInfustion_mL_Per_hr = (DayLimit_mL / 0.5 ) / 8.0; //half of the fluid should be loaded in the first 8 hours;
   double DayLimit_Hr = DayLimit_mL/24.0;
+  double temp = 0.0;
 
   //set fluid infusion rate, using ringers lactate: 
   if(fluid == ringers) {

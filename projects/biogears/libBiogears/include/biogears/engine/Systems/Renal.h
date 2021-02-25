@@ -183,6 +183,7 @@ protected:
   SEFluidCircuitPath* m_rightEfferentArteriolePath;
 
   //Substances
+  SESubstance* m_albumin;
   SESubstance* m_sodium;
   SESubstance* m_urea;
   SESubstance* m_glucose;
@@ -220,6 +221,7 @@ protected:
 
   SELiquidSubstanceQuantity* m_bladderGlucose;
   SELiquidSubstanceQuantity* m_bladderPotassium;
+  SELiquidSubstanceQuantity* m_bladderAlbumin;
   SELiquidSubstanceQuantity* m_bladderSodium;
   SELiquidSubstanceQuantity* m_bladderUrea;
   SELiquidSubstanceQuantity* m_leftTubulesSodium;

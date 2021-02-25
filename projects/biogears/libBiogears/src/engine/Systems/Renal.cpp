@@ -143,6 +143,7 @@ void Renal::Clear()
   m_rightUreterLactate = nullptr;
   m_rightUreterPotassium = nullptr;
 
+  m_bladderAlbumin = nullptr;
   m_bladderGlucose = nullptr;
   m_bladderPotassium = nullptr;
   m_bladderSodium = nullptr;
@@ -316,6 +317,7 @@ void Renal::SetUp()
   m_patient = &m_data.GetPatient();
 
   //Substances
+  m_albumin = &m_data.GetSubstances().GetAlbumin();
   m_sodium = &m_data.GetSubstances().GetSodium();
   m_urea = &m_data.GetSubstances().GetUrea();
   m_glucose = &m_data.GetSubstances().GetGlucose();
@@ -418,6 +420,7 @@ void Renal::SetUp()
   m_rightUreterLactate = m_rightUreter->GetSubstanceQuantity(*m_lactate);
   m_rightUreterPotassium = m_rightUreter->GetSubstanceQuantity(*m_potassium);
 
+  m_bladderAlbumin = m_bladder->GetSubstanceQuantity(*m_albumin);
   m_bladderGlucose = m_bladder->GetSubstanceQuantity(*m_glucose);
   m_bladderPotassium = m_bladder->GetSubstanceQuantity(*m_potassium);
   m_bladderSodium = m_bladder->GetSubstanceQuantity(*m_sodium);
@@ -577,7 +580,7 @@ void Renal::CalculateUltrafiltrationFeedback()
     filterResistance_mmHg_s_Per_mL = std::min(filterResistance_mmHg_s_Per_mL, m_CVOpenResistance_mmHg_s_Per_mL);
 
     filterResistancePath->GetNextResistance().SetValue(filterResistance_mmHg_s_Per_mL, FlowResistanceUnit::mmHg_s_Per_mL);
-
+    glomerularCapillaries->GetSubstanceQuantity(m_data.GetSubstances().GetAlbumin())->GetConcentration();
     //Modify the pressure on both sides of the filter based on the protein (Albumin) concentration
     //This is the osmotic pressure effect
     ///\todo turn on colloid osmotic pressure once substances have been handled properly (and GI)
@@ -1409,10 +1412,11 @@ void Renal::CalculateVitalSigns()
   GeneralMath::CalculateSpecificGravity(substanceMass, GetUrineVolume(), GetUrineSpecificGravity());
 
   // Urine osmolality is the osmotic pressure of sodium, glucose and urea over the weight of the fluid
-
+  
   GeneralMath::CalculateOsmolality(m_bladderSodium->GetMolarity(), m_bladderPotassium->GetMolarity(), m_bladderGlucose->GetMolarity(), m_bladderUrea->GetMolarity(), GetUrineSpecificGravity(), GetUrineOsmolality());
   GeneralMath::CalculateOsmolarity(m_bladderSodium->GetMolarity(), m_bladderPotassium->GetMolarity(), m_bladderGlucose->GetMolarity(), m_bladderUrea->GetMolarity(), GetUrineOsmolarity());
-
+  //set albumin probes
+  m_data.GetDataTrack().Probe("albuminBladder_mg_Per_dL", m_bladderAlbumin->GetConcentration().GetValue(MassPerVolumeUnit::mg_Per_dL));
   double urineUreaConcentration_g_Per_L = m_bladderUrea->GetConcentration(MassPerVolumeUnit::g_Per_L);
   //2.14 = MW Urea(60) / MW N2 (2*14)
   GetUrineUreaNitrogenConcentration().SetValue(urineUreaConcentration_g_Per_L / 2.14, MassPerVolumeUnit::g_Per_L);
