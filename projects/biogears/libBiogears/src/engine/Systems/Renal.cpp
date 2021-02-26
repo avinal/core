@@ -1080,8 +1080,6 @@ void Renal::CalculateReabsorptionTransport(SESubstance& sub)
       reabsorptionRate_mg_Per_s = std::min(reabsorptionRate_mg_Per_s, transportMaximum_mg_Per_s);
     }
 
-    massToMove_mg = reabsorptionRate_mg_Per_s * m_dt;
-
     //Store information about glucose to be used later in Gluconeogenesis
     if (&sub == m_glucose) {
       if (kidney == 0) {
@@ -1573,8 +1571,8 @@ void Renal::UpdateBladderVolume()
   /// \todo Eventually replace this entire thing with a compliance and model peristaltic flow
 
   //Don't fill the bladder during stabilization
-  if (m_data.GetState() != EngineState::Active)
-    return;
+  //if (m_data.GetState() != EngineState::Active)
+  //  return;
 
   //Manually modify the bladder volume based on flow
   //This will work for both filling the bladder and urinating
